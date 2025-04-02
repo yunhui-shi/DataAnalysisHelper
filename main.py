@@ -118,11 +118,36 @@ def analyze_data(data):
     analyze_region_correlation(data)
     logging.info("Analysis completed!")
 
+def check_log_for_issues():
+    """Check analyze.log for errors or NaN values"""
+    try:
+        with open('analyze.log', 'r') as f:
+            log_content = f.read()
+        
+        issues = []
+        if 'Error' in log_content:
+            issues.append("Found 'Error' in log")
+        if 'NaN' in log_content:
+            issues.append("Found 'NaN' in log")
+        if 'inf' in log_content.lower():
+            issues.append("Found infinite values in log")
+            
+        if issues:
+            print("\nWARNING: Potential issues found in analysis:")
+            for issue in issues:
+                print(f"- {issue}")
+        else:
+            print("\nAnalysis completed successfully with no obvious issues")
+            
+    except FileNotFoundError:
+        print("Error: analyze.log not found")
+
 def main():
     setup_directories()
     data = load_data()
     if data is not None:
         analyze_data(data)
+    check_log_for_issues()
 
 if __name__ == "__main__":
     main()
