@@ -17,6 +17,8 @@ def setup_directories():
 def log_stats(description, stats):
     """Log statistics with description"""
     logging.info(f"\n{description}\n{stats}\n")
+
+def load_data(file_path='data/time_series.csv'):
     """Load time series data from CSV file"""
     try:
         data = pd.read_csv(file_path, parse_dates=['timestamp'])
