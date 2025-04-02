@@ -1,7 +1,22 @@
 import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
 from pathlib import Path
+import logging
+from datetime import time
 
-def load_data(file_path='data/time_series.csv'):
+# Setup logging
+logging.basicConfig(filename='analyze.log', level=logging.INFO, 
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+def setup_directories():
+    """Create output directories if they don't exist"""
+    Path("images").mkdir(exist_ok=True)
+
+def log_stats(description, stats):
+    """Log statistics with description"""
+    logging.info(f"\n{description}\n{stats}\n")
     """Load time series data from CSV file"""
     try:
         data = pd.read_csv(file_path, parse_dates=['timestamp'])
@@ -11,23 +26,101 @@ def load_data(file_path='data/time_series.csv'):
         print(f"Error loading data: {e}")
         return None
 
+def calculate_errors(data):
+    """Calculate forecast errors and add to dataframe"""
+    data['wind_error'] = data['wind_actual'] - data['wind_forecast']
+    data['solar_error'] = data['solar_actual'] - data['solar_forecast']
+    data['wind_error_pct'] = data['wind_error'] / data['wind_actual'] * 100
+    data['solar_error_pct'] = data['solar_error'] / data['solar_actual'] * 100
+    return data
+
+def analyze_overall_accuracy(data):
+    """Analyze overall forecast accuracy"""
+    # Overall stats
+    overall = data[['wind_error', 'solar_error']].describe()
+    log_stats("Overall Forecast Error Statistics", overall)
+    
+    # By region
+    by_region = data.groupby('region')[['wind_error', 'solar_error']].describe()
+    log_stats("Forecast Error Statistics by Region", by_region)
+    
+    return by_region
+
+def analyze_hourly_patterns(data):
+    """Analyze hourly patterns of forecast errors"""
+    data['hour'] = data['timestamp'].dt.hour
+    
+    # Wind - all hours
+    wind_hourly = data.groupby('hour')['wind_error'].agg(['mean', 'std'])
+    fig = px.line(wind_hourly, title='Wind Forecast Error by Hour')
+    fig.write_image("images/wind_hourly.png")
+    logging.info("Saved wind hourly pattern to images/wind_hourly.png")
+    
+    # Solar - daytime only (6am to 6pm)
+    solar_daytime = data[(data['hour'] >= 6) & (data['hour'] <= 18)]
+    solar_hourly = solar_daytime.groupby('hour')['solar_error'].agg(['mean', 'std'])
+    fig = px.line(solar_hourly, title='Solar Forecast Error by Hour (Daytime)')
+    fig.write_image("images/solar_hourly.png")
+    logging.info("Saved solar hourly pattern to images/solar_hourly.png")
+    
+    return wind_hourly, solar_hourly
+
+def analyze_weekly_patterns(data):
+    """Analyze weekly patterns using heatmaps"""
+    data['day_of_week'] = data['timestamp'].dt.dayofweek
+    
+    # Wind heatmap
+    wind_weekly = data.groupby('day_of_week')['wind_error'].mean().reset_index()
+    fig = px.imshow(wind_weekly.pivot_table(values='wind_error', 
+                                          index='day_of_week'),
+                    title='Wind Forecast Error by Day of Week')
+    fig.write_image("images/wind_weekly.png")
+    logging.info("Saved wind weekly pattern to images/wind_weekly.png")
+    
+    # Solar heatmap
+    solar_weekly = data.groupby('day_of_week')['solar_error'].mean().reset_index()
+    fig = px.imshow(solar_weekly.pivot_table(values='solar_error', 
+                                           index='day_of_week'),
+                    title='Solar Forecast Error by Day of Week')
+    fig.write_image("images/solar_weekly.png")
+    logging.info("Saved solar weekly pattern to images/solar_weekly.png")
+
+def analyze_region_correlation(data):
+    """Analyze correlation between regions"""
+    regions = data['region'].unique()
+    corr_matrix = pd.DataFrame(index=regions, columns=regions)
+    
+    for r1 in regions:
+        for r2 in regions:
+            corr = data[data['region']==r1]['wind_error'].corr(
+                   data[data['region']==r2]['wind_error'])
+            corr_matrix.loc[r1, r2] = corr
+    
+    fig = px.imshow(corr_matrix, text_auto=True,
+                   title='Wind Forecast Error Correlation Between Regions')
+    fig.write_image("images/region_correlation.png")
+    logging.info("Saved region correlation matrix to images/region_correlation.png")
+    log_stats("Region Correlation Matrix", corr_matrix)
+
 def analyze_data(data):
-    """Perform basic analysis on the time series data"""
+    """Perform comprehensive analysis on the time series data"""
     if data is None:
         return
-        
-    print("\nBasic Statistics:")
-    print(data.describe())
     
-    print("\nMissing Values:")
-    print(data.isnull().sum())
+    data = calculate_errors(data)
     
-    print("\nWeekend vs Weekday Comparison:")
-    print(data.groupby('is_weekend')[['wind_actual', 'solar_actual']].mean())
+    logging.info("Starting analysis...")
+    analyze_overall_accuracy(data)
+    analyze_hourly_patterns(data)
+    analyze_weekly_patterns(data)
+    analyze_region_correlation(data)
+    logging.info("Analysis completed!")
 
 def main():
+    setup_directories()
     data = load_data()
-    analyze_data(data)
+    if data is not None:
+        analyze_data(data)
 
 if __name__ == "__main__":
     main()
