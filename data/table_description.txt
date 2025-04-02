@@ -1,0 +1,14 @@
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 2688 entries, 0 to 2687
+Data columns (total 7 columns):
+ #   Column          Non-Null Count  Dtype         
+---  ------          --------------  -----         
+ 0   timestamp       2688 non-null   datetime64[ns]
+ 1   wind_forecast   2688 non-null   float64       
+ 2   wind_actual     2688 non-null   float64       
+ 3   solar_forecast  2688 non-null   float64       
+ 4   solar_actual    2688 non-null   float64       
+ 5   is_weekend      2688 non-null   bool          
+ 6   region          2688 non-null   object        
+dtypes: bool(1), datetime64[ns](1), float64(4), object(1)
+memory usage: 128.8+ KB
