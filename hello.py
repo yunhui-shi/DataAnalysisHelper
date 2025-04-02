@@ -1,6 +1,6 @@
-def hello_world():
-    """打印Hello World"""
-    print("Hello World")
+def goodbye():
+    """打印Goodbye"""
+    print("Goodbye")
 
 if __name__ == "__main__":
-    hello_world()
+    goodbye()
