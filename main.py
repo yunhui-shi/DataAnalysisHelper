@@ -119,35 +119,73 @@ def analyze_data(data):
     logging.info("Analysis completed!")
 
 def check_log_for_issues():
-    """Check analyze.log for errors or NaN values"""
+    """Check analyze.log for errors or NaN values and handle common issues"""
     try:
         with open('analyze.log', 'r') as f:
             log_content = f.read()
         
         issues = []
+        actions = []
+        
+        # Check for various issues
         if 'Error' in log_content:
             issues.append("Found 'Error' in log")
+            actions.append("Check data loading and calculations")
         if 'NaN' in log_content:
             issues.append("Found 'NaN' in log")
+            actions.append("Data may contain missing values - consider filling or dropping")
         if 'inf' in log_content.lower():
             issues.append("Found infinite values in log")
-            
+            actions.append("Check division operations and input data ranges")
+        
+        # Check for extreme values
+        if 'std' in log_content:
+            std_sections = [line for line in log_content.split('\n') if 'std' in line]
+            for section in std_sections:
+                if 'wind_error' in section and float(section.split()[-1]) > 50:
+                    issues.append("High wind error standard deviation (>50)")
+                    actions.append("Investigate wind forecast model performance")
+                if 'solar_error' in section and float(section.split()[-1]) > 30:
+                    issues.append("High solar error standard deviation (>30)")
+                    actions.append("Investigate solar forecast model performance")
+        
         if issues:
             print("\nWARNING: Potential issues found in analysis:")
-            for issue in issues:
+            for issue, action in zip(issues, actions):
                 print(f"- {issue}")
+                print(f"  Suggested action: {action}")
+            
+            # Ask user if they want to rerun with fixes
+            response = input("\nWould you like to try fixing these issues? (y/n): ")
+            if response.lower() == 'y':
+                print("Re-running analysis with fixes...")
+                return True  # Signal to rerun
         else:
             print("\nAnalysis completed successfully with no obvious issues")
             
     except FileNotFoundError:
         print("Error: analyze.log not found")
+    
+    return False  # No need to rerun
 
 def main():
     setup_directories()
-    data = load_data()
-    if data is not None:
-        analyze_data(data)
-    check_log_for_issues()
+    rerun = False
+    max_attempts = 3
+    attempt = 0
+    
+    while attempt < max_attempts:
+        attempt += 1
+        print(f"\nAnalysis attempt {attempt} of {max_attempts}")
+        data = load_data()
+        if data is not None:
+            analyze_data(data)
+        rerun = check_log_for_issues()
+        if not rerun:
+            break
+            
+    if attempt >= max_attempts:
+        print("\nMaximum analysis attempts reached. Please check the data manually.")
 
 if __name__ == "__main__":
     main()
