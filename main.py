@@ -1,9 +1,3 @@
-def main():
-    print("Hello from aiderda!")
-
-
-if __name__ == "__main__":
-    main()
 def generate_fibonacci(n):
     """生成斐波那契数列
     
